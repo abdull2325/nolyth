@@ -157,16 +157,18 @@ export function HorizontalProjects() {
       
       const isEnteringFromTop = rect.top < window.innerHeight && rect.top > 0 && scrollDirection === 'down';
       const isEnteringFromBottom = rect.bottom > 0 && rect.bottom < window.innerHeight && scrollDirection === 'up';
-      
+
       if (!hasInitialized && (isEnteringFromTop || isEnteringFromBottom)) {
-        scrollX.jump(0);
-        
+        // When entering from top (scrolling down), start at beginning
+        // When entering from bottom (scrolling up), start at end
         if (scrollDirection === 'down') {
+          scrollX.jump(0);
           hasScrolledDownRef.current = true;
         } else {
+          scrollX.jump(-maxScroll);
           hasScrolledDownRef.current = false;
         }
-        
+
         setHasInitialized(true);
       }
       
@@ -215,13 +217,9 @@ export function HorizontalProjects() {
       const isAtTop = rect.top <= 0;
       const isInViewport = rect.top <= window.innerHeight && rect.bottom >= 0;
 
-      if (!hasScrolledDownRef.current) {
-        if (e.deltaY > 0 && isInViewport) {
-          hasScrolledDownRef.current = true;
-        } else {
-          setIsSticky(false);
-          return;
-        }
+      // Track scroll direction to handle entry from both top and bottom
+      if (!hasScrolledDownRef.current && e.deltaY > 0 && isInViewport) {
+        hasScrolledDownRef.current = true;
       }
 
       if (isAtTop && isInViewport) {
@@ -229,38 +227,38 @@ export function HorizontalProjects() {
         const isAtStart = currentX <= 0;
         const isAtEnd = currentX >= maxScroll - 1;
 
+        // Exit when scrolling up from the start
         if (isAtStart && e.deltaY < 0) {
-          if (e.deltaY < 0) {
-            exitAccumulatedDelta += Math.abs(e.deltaY);
-            if (exitAccumulatedDelta >= EXIT_THRESHOLD) {
-              setIsSticky(false);
-              exitAccumulatedDelta = 0;
-              return;
-            }
-          } else {
-            exitAccumulatedDelta = 0;
-          }
-          
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        } else {
-          exitAccumulatedDelta = 0;
-        }
-
-        if (isAtEnd && e.deltaY > 0) {
-          exitAccumulatedDelta += e.deltaY;
-          
+          exitAccumulatedDelta += Math.abs(e.deltaY);
           if (exitAccumulatedDelta >= EXIT_THRESHOLD) {
             setIsSticky(false);
             exitAccumulatedDelta = 0;
+            hasScrolledDownRef.current = false;
             return;
           }
-          
+
           e.preventDefault();
           e.stopPropagation();
           return;
-        } else if (e.deltaY < 0) {
+        } else if (!isAtStart) {
+          exitAccumulatedDelta = 0;
+        }
+
+        // Exit when scrolling down from the end
+        if (isAtEnd && e.deltaY > 0) {
+          exitAccumulatedDelta += e.deltaY;
+
+          if (exitAccumulatedDelta >= EXIT_THRESHOLD) {
+            setIsSticky(false);
+            exitAccumulatedDelta = 0;
+            hasScrolledDownRef.current = false;
+            return;
+          }
+
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        } else if (!isAtEnd && e.deltaY > 0) {
           exitAccumulatedDelta = 0;
         }
 
